@@ -1,28 +1,27 @@
-import time
-from engine import gauss_seidel, create_grid
+from data_processing import visualize_grids, plot_energy_functional, visualize_residuals
 
 def main():
     # -------------------------------
     # RELAXATION
-    # experiment over the grid size for n in [3, 4, 5, 6]
+    # experiment over the grid size for n in [2, 3, 4, 5, 6]
     # -------------------------------
+    n_values = [2, 3, 4, 5, 6]
+    max_iterations = 300
 
-    for n in range(3, 4):
-        # power of 2 for the simulation: N = 2**n
-        N = 2 ** n + 1
+    plot_energy_functional(max_iterations, "relaxation", [2**n + 1 for n in n_values], f"./plots/relaxation/energy_functionals.png")
+    visualize_grids("relaxation", "N", [2**n + 1 for n in n_values], f"./plots/relaxation/solution_grids.png")
+    visualize_residuals("relaxation/65", "iter", [i for i in range(0, max_iterations, max_iterations // 10)], f"./plots/relaxation/residuals.png")
 
-        # creating a grid
-        grid, delta_x = create_grid(N)
+    # -------------------------------
+    # OVERRELAXATION
+    # experiment for n = 5 over the weight w in [0.5, 1.0, 1.5, 1.9]
+    # -------------------------------
+    weights = [1.0, 1.5, 1.9]
+    max_iterations = 1000
 
-        # relaxation through gauss-seidel method
-        start_time = time.time()
-
-        gauss_seidel(grid, N, delta_x, max_iterations=10, tolerance=1e-6)
-
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"n = {n} | Elapsed time: {elapsed_time:.6f} seconds")
-
+    plot_energy_functional(max_iterations, "overrelaxation", weights, f"./plots/overrelaxation/energy_functionals.png")
+    visualize_grids("overrelaxation", "w", weights, f"./plots/overrelaxation/solution_grids.png")
+    visualize_residuals("overrelaxation/1.500000", "iter", [i for i in range(0, max_iterations, max_iterations // 10)], f"./plots/overrelaxation/residuals.png")
 
 if __name__ == "__main__":
     main()
