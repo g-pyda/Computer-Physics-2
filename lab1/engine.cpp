@@ -10,6 +10,10 @@
 #include <iostream>
 #include "data_processing.h"
 
+// ------------------------------------------------------
+// GRID CREATION AND MANIPULATION
+// ------------------------------------------------------
+
 std::pair<std::vector<std::vector<double>>, double> create_grid(int N) {
     std::vector<std::vector<double>> grid(N, std::vector<double>(N, 0.0));
     double delta_x = 3.0 / (N - 1);
@@ -22,6 +26,46 @@ std::pair<std::vector<std::vector<double>>, double> create_grid(int N) {
             }
         }
     }
+    return {grid, delta_x};
+}
+
+
+std::pair<std::vector<std::vector<double>>, double> refine_grid(
+    // allocating the new grid
+    int prev_N, const std::vector<std::vector<double>>& coarse_grid) {
+    int N = 2 * (prev_N - 1) + 1;
+    std::vector<std::vector<double>> grid(N, std::vector<double>(N, 0.0));
+    double delta_x = 3.0 / (N - 1);
+    
+    // filling with exact indices from previous grid
+    std::vector<int> coarse_indices(prev_N);
+    for (int i = 0; i < prev_N; ++i) {
+        coarse_indices[i] = i;
+    }
+    for (int i : coarse_indices) {
+        for (int j : coarse_indices) {
+            grid[i*2][j*2] = coarse_grid[i][j];
+        }
+    }
+
+    // filling the nodes INLINE with the exact values with their mean (2-point mean)
+    for (int i = 0; i < N; ++i) {
+        for (int j = (i + 1)%2; j < N; ++j) {
+            if (i % 2 == 0) {
+                grid[i][j] = 0.5 * (grid[i][j - 1] + grid[i][j + 1]);
+            } else {
+                grid[i][j] = 0.5 * (grid[i - 1][j] + grid[i + 1][j]);
+            }
+        }
+    }
+
+    // filling the nodes with the mean of their 4 neighbors (4-point mean)
+    for (int i = 1; i < N - 1; i += 2) {
+        for (int j = 1; j < N - 1; j += 2) {
+            grid[i][j] = 0.25 * (grid[i - 1][j] + grid[i + 1][j] + grid[i][j - 1] + grid[i][j + 1]);
+        }
+    }
+
     return {grid, delta_x};
 }
 
@@ -62,6 +106,7 @@ void gauss_seidel(const std::string& dirname, const char study, std::vector<std:
     }
     cleanup_directory("./data/" + dirname + "/" + study_dir);
     const double energy_exact = -std::pow(3 * M_PI / 2, 2);
+    float previous_energy = energy_functional(u, N, delta_x);
     for (int iteration = 0; iteration < max_iterations; ++iteration) {
         if (iteration % (max_iterations / 10) == 0) {
             std::cout << "\rIteration: " << iteration << "/" << max_iterations << std::flush;
@@ -75,7 +120,20 @@ void gauss_seidel(const std::string& dirname, const char study, std::vector<std:
         }
         // Calculate energy once per iteration
         double energy = energy_functional(u, N, delta_x);
-        double diff = std::abs(energy - energy_exact);
+        double diff = std::abs(energy - previous_energy);
+        previous_energy = energy;
+        if (diff < tolerance && iteration > 0) {
+            std::cout << "\nConvergence achieved after " << iteration << " iterations." << std::endl;
+            // saving the last residual
+            for (int i = 1; i < N - 1; ++i) {
+                for (int j = 1; j < N - 1; ++j) {
+                    double res = residuum(u, i, j, N, delta_x);
+                    write_to_file("./data/" + dirname + "/" + study_dir + "/residual_" + std::to_string(iteration) + ".txt", std::to_string(res) + " ");
+                }
+                write_to_file("./data/" + dirname + "/" + study_dir + "/residual_" + std::to_string(iteration) + ".txt", "\n");
+            }
+            break;
+        }
         // saving residual every 10th iteration
         if (iteration % (max_iterations / 10) == 0) {
             for (int i = 1; i < N - 1; ++i) {
