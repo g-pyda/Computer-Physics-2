@@ -39,12 +39,24 @@ def main():
     # OVERRELAXATION - weight
     # experiment for n = 5 over the weight w in [0.5, 1.0, 1.5, 1.9]
     # -------------------------------
-    weights = [w * 0.1 for w in range(5, 20)]
+    weights1 = [w * 0.1 for w in range(5, 10)]
+    weights2 = [w * 0.1 for w in range(10, 15)]
+    weights3 = [w * 0.1 for w in range(15, 20)]
 
     plot_energy_functional("overrelaxation-w",
-                           weights,
-                           f"./plots/overrelaxation/w_energy_functionals_differences.png",
-                           f"./plots/overrelaxation/w_energy_functionals.png",
+                           weights1,
+                           f"./plots/overrelaxation/w1_energy_functionals_differences.png",
+                           f"./plots/overrelaxation/w1_energy_functionals.png",
+                           ylim2=(-40, 0))
+    plot_energy_functional("overrelaxation-w",
+                           weights2,
+                           f"./plots/overrelaxation/w2_energy_functionals_differences.png",
+                           f"./plots/overrelaxation/w2_energy_functionals.png",
+                           ylim2=(-40, 0))
+    plot_energy_functional("overrelaxation-w",
+                           weights3,
+                           f"./plots/overrelaxation/w3_energy_functionals_differences.png",
+                           f"./plots/overrelaxation/w3_energy_functionals.png",
                            ylim2=(-40, 0))
 
     # -------------------------------
