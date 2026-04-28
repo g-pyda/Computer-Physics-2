@@ -1,0 +1,168 @@
+Starting relaxation experiment...
+Iteration: 0/1000
+Convergence achieved after 17 iterations.
+
+n = 2 | Elapsed time: 0.062443 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 32 iterations.
+
+n = 3 | Elapsed time: 0.171443 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 72 iterations.
+
+n = 4 | Elapsed time: 0.324961 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 122 iterations.
+
+n = 5 | Elapsed time: 1.388516 seconds
+==========================================================
+Iteration: 500/1000
+Convergence achieved after 576 iterations.
+
+n = 6 | Elapsed time: 18.998661 seconds
+==========================================================
+Iteration: 900/1000
+n = 7 | Elapsed time: 92.730362 seconds
+==========================================================
+Relaxation experiment finished.
+==========================================================
+
+Starting overrelaxation experiment...
+Iteration: 400/1000
+Convergence achieved after 480 iterations.
+
+w = 0.500000 | Elapsed time: 3.078798 seconds
+==========================================================
+Iteration: 300/1000
+Convergence achieved after 371 iterations.
+
+w = 0.600000 | Elapsed time: 3.518227 seconds
+==========================================================
+Iteration: 200/1000
+Convergence achieved after 292 iterations.
+
+w = 0.700000 | Elapsed time: 2.776622 seconds
+==========================================================
+Iteration: 200/1000
+Convergence achieved after 222 iterations.
+
+w = 0.800000 | Elapsed time: 2.901962 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 165 iterations.
+
+w = 0.900000 | Elapsed time: 2.175288 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 122 iterations.
+
+w = 1.000000 | Elapsed time: 2.145359 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 149 iterations.
+
+w = 1.100000 | Elapsed time: 3.385958 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 115 iterations.
+
+w = 1.200000 | Elapsed time: 5.114431 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 138 iterations.
+
+w = 1.300000 | Elapsed time: 4.868950 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 115 iterations.
+
+w = 1.400000 | Elapsed time: 4.639130 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 91 iterations.
+
+w = 1.500000 | Elapsed time: 3.209050 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 104 iterations.
+
+w = 1.600000 | Elapsed time: 4.818688 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 81 iterations.
+
+w = 1.700000 | Elapsed time: 3.868220 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 69 iterations.
+
+w = 1.800000 | Elapsed time: 3.546367 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 106 iterations.
+
+w = 1.900000 | Elapsed time: 5.399227 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 28 iterations.
+
+n = 2 | Elapsed time: 0.133485 seconds
+==========================================================
+Iteration: 900/1000
+n = 3 | Elapsed time: 3.277471 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 41 iterations.
+
+n = 4 | Elapsed time: 0.937161 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 91 iterations.
+
+n = 5 | Elapsed time: 3.489675 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 159 iterations.
+
+n = 6 | Elapsed time: 20.359539 seconds
+==========================================================
+Iteration: 700/1000
+Convergence achieved after 700 iterations.
+
+n = 7 | Elapsed time: 197.173692 seconds
+==========================================================
+Overrelaxation experiment finished.
+==========================================================
+
+Starting grid refinement experiment...
+Iteration: 900/1000
+Refinement level: n = 9 | Elapsed time: 0.844217 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 34 iterations.
+
+Refinement level: n = 17 | Elapsed time: 0.460556 seconds
+==========================================================
+Iteration: 0/1000
+Convergence achieved after 47 iterations.
+
+Refinement level: n = 33 | Elapsed time: 1.455908 seconds
+==========================================================
+Iteration: 100/1000
+Convergence achieved after 116 iterations.
+
+Refinement level: n = 65 | Elapsed time: 8.163487 seconds
+==========================================================
+Iteration: 400/1000
+Convergence achieved after 480 iterations.
+
+Refinement level: n = 129 | Elapsed time: 57.395751 seconds
+==========================================================
+Iteration: 900/1000
+Refinement level: n = 257 | Elapsed time: 366.447305 seconds
+==========================================================
+Grid refinement experiment finished.
+==========================================================
