@@ -55,97 +55,19 @@ double mean_energy(
     return energy;
 }
 
-// ========== LINEAR SYSTEM SOLVER (LAPACKE) ========== //
+// ========== GROUND STATE GENERATION ========= //
 
-// void solve_and_save(
-//     std::vector<std::vector<double>>& H,
-//     std::vector<std::vector<double>>& O,
-//     std::vector<double>& E,
-//     const std::string& path,
-//     int total_nodes
-// ) {
-//     int n = total_nodes;
-//     int nrhs = 1;
-//     int lda = n;
-//     int ldb = n;
-
-//     // creating flat buffers for LAPACK
-//     std::vector<double> H_flat(n * n);
-//     std::vector<double> O_flat(n * n);
-//     for (int i = 0; i < n; ++i) {
-//         for (int j = 0; j < n; ++j) {
-//             H_flat[i * n + j] = H[i][j];
-//             O_flat[i * n + j] = O[i][j];
-//         }
-//     }
-
-//     // solving generalized symmetric-definite eigenproblem (eigenvalues in E, eigenvectors in H_flat)
-//     lapack_int info = LAPACKE_dsygv(
-//         LAPACK_ROW_MAJOR, 
-//         1,
-//         'V',
-//         'U',
-//         n,
-//         H_flat.data(),
-//         lda,
-//         O_flat.data(),
-//         ldb,
-//         E.data()
-//     );
-
-//     if (info > 0) {
-//         std::cerr << "error: matrix is singular at U(" << info << "," << info << ")" << std::endl;
-//         return;
-//     } else if (info < 0) {
-//         std::cerr << "error: illegal argument at position " << -info << " in lapack call" << std::endl;
-//         return;
-//     }
-
-//     // saving eigenvalues to eigenvalues.txt
-//     std::ofstream f_sol(path + "/eigenvalues.txt");
-//     if (!f_sol.is_open()) {
-//         std::cerr << "error: could not open solution file for writing" << std::endl;
-//         return;
-//     }
-
-//     for (int i = 0; i < n; i++) {
-//         f_sol << i + 1 << " " << std::fixed << std::setprecision(10) << E[i] << "\n";
-//     }
-//     f_sol.close();
-
-//     // saving eigenvectors to eigenvectors.txt
-//     std::ofstream f_vec(path + "/eigenvectors.txt");
-//     if (!f_vec.is_open()) {
-//         std::cerr << "error: could not open eigenvectors file for writing" << std::endl;
-//         return;
-//     }
-
-//     for (int i = 0; i < n; ++i) {
-//         for (int j = 0; j < n; ++j)
-//             f_vec << std::fixed << std::setprecision(10) << H_flat[i*n + j] << " ";
-//         f_vec << "\n";
-//     }
-//     f_vec.close();
-// }
-
-// ========== MAIN SIMULATION FROM GROUND STATE ========== //
-
-void run_simulation(double alpha, int excited_states, std::string path) {
-    // initializing file directory
-    std::filesystem::create_directories(path);
-
-    // initializing the mesh with random values (except BC)
-    std::vector<std::vector<double>> wavefunction(N, std::vector<double>(N, 0.0));
-    for (int i = 1; i < N-1; ++i) 
-        for (int j = 1; j < N-1; ++j)
-            wavefunction[i][j] = double(rand())/(0.5*RAND_MAX) - 1.0;
-    
+void get_ground_state(
+    std::vector<std::vector<double>>& wavefunction,
+    std::string path,
+    double alpha
+) {
     double prev_en = 0.0;
     double diff = 0.0;
     std::ofstream f_energy (path + "/grnd_energy.out");
     for (int e = 0; e < MAX_ITER; ++e) {
         if ((e+1)%10 == 0)
-            std::cout << "Iteration " << e+1 << "\tenergy diff: " << diff << "\n";
+            std::cout << "Iteration " << e+1 << "\tenergy diff: " << diff << "\r";
         // iterative application of Hamiltonian on the wavefunction
         std::vector<std::vector<double>> hamil (N, std::vector<double>(N, 0.0));
         for (int i = 1; i < N-1; ++i) 
@@ -179,5 +101,130 @@ void run_simulation(double alpha, int excited_states, std::string path) {
         
         prev_en = current_en;
     }
+    std::cout << "\n";
     f_energy.close();
+}
+
+// ========== EXCITED STATES GENERATION ========== //
+
+double c_k(
+    std::vector<std::vector<std::vector<double>>>& excitations,
+    std::vector<std::vector<double>>& wavefunction,
+    int k
+) {
+    double c = 0.0;
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            c += excitations[k][i][j]*wavefunction[i][j]*std::pow(DELTA, 2);
+        }
+    }
+    return c;
+}
+
+void get_excited_state(
+    std::vector<std::vector<std::vector<double>>>& excitations,
+    std::vector<std::vector<double>>& wavefunction,
+    std::string path,
+    double alpha,
+    int excitation_level
+) {
+    double prev_en = 0.0;
+    double diff = 0.0;
+    std::ofstream f_energy (path + "/" + std::to_string(excitation_level) + "_energy.out");
+    for (int e = 0; e < MAX_ITER; ++e) {
+        if ((e+1)%10 == 0)
+            std::cout << "Iteration " << e+1 << "\tenergy diff: " << diff << "\r";
+
+        // iterative application of Hamiltonian on the wavefunction
+        std::vector<std::vector<double>> hamil (N, std::vector<double>(N, 0.0));
+        for (int i = 1; i < N-1; ++i) 
+            for (int j = 1; j < N-1; ++j) 
+                hamil[i][j] =  operate_hamiltonian(wavefunction, i, j);
+                
+        for (int i = 1; i < N-1; ++i) 
+            for (int j = 1; j < N-1; ++j) 
+                wavefunction[i][j] = wavefunction[i][j] - alpha*hamil[i][j];
+        
+        // orthogonalization
+        std::vector<double> c(excitation_level, 0.0);
+        for (int k = 0; k < excitation_level; ++k) 
+            c[k] = c_k(excitations, wavefunction, k);
+        
+        for (int i = 0; i < N; ++i) {
+            for (int j = 0; j < N; ++j) {
+                for (int k = 0; k < excitation_level; ++k) {
+                    wavefunction[i][j] = wavefunction[i][j] - c[k]*excitations[k][i][j];
+                }
+            }
+        }
+
+        // wave normalization
+        double I = 0.0;
+        for (int i = 0; i < N; ++i) 
+            for (int j = 0; j < N; ++j) 
+                I += std::pow(wavefunction[i][j]*DELTA, 2);
+
+        I = std::sqrt(I);
+        for (int i = 0; i < N; ++i) 
+            for (int j = 0; j < N; ++j) 
+                wavefunction[i][j] /= I;
+            
+        // saving the energy to a file
+        double current_en = mean_energy(wavefunction);
+
+        int nx = excitation_level, ny = 0;
+        if (excitation_level == 3) {
+            nx = 0;
+            ny = 1;
+        } else if (excitation_level == 4) nx -= 1;
+
+        f_energy << std::to_string(e+1) << "\t" << std::setprecision(6) << current_en << " " << std::setprecision(6) << get_exact_energy(nx, ny) << "\n";
+        
+        // convergence check
+        diff = std::abs(current_en - prev_en);
+        if (e > 0) 
+            if (diff < MAX_TOL)
+                break;
+        
+        prev_en = current_en;
+    }
+    std::cout << "\n";
+    f_energy.close();
+}
+
+void save_wavefunction(std::vector<std::vector<double>>& wavefunction, std::string path) {
+    std::ofstream f_wf (path + "_wf.out");
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            f_wf << wavefunction[i][j] << " ";
+        }
+        f_wf << "\n";
+    }
+    f_wf.close();
+}
+
+// ========== MAIN SIMULATION ========== //
+
+void run_simulation(double alpha, int K, std::string path, std::vector<std::vector<std::vector<double>>>& excitations, bool save_excitation) {
+    // initializing file directory
+        std::filesystem::create_directories(path);
+
+        // initializing the mesh with random values (except BC)
+        std::vector<std::vector<double>> wavefunction(N, std::vector<double>(N, 0.0));
+        for (int i = 1; i < N-1; ++i) 
+            for (int j = 1; j < N-1; ++j)
+                wavefunction[i][j] = double(rand())/(0.5*RAND_MAX) - 1.0;
+
+    if (K == 0) {
+        // generation of ground state 
+        get_ground_state(wavefunction, path, alpha);
+    } else {
+        // generating excitation state based on previous ones
+        get_excited_state(excitations, wavefunction, path, alpha, K);
+        
+    }
+    if (save_excitation) {
+        excitations.push_back(wavefunction);
+        save_wavefunction(wavefunction, path + "/" + std::to_string(K));
+    }
 }
