@@ -24,12 +24,19 @@ int main() {
         generate_excitation(alpha_optimal, k, "data/excitation", excitations, true);
     }
 
-    // INITIAL CONDITION WITH 3 EIGENSTATES
+    // PROPER SETUP EXPERIMENT
 
     std::cout << "Running the experiment with proper setup" << std::endl;
     std::vector<std::vector<std::complex<double>>> proper_init;
     get_initial_condition(excitations, proper_init, true);
     run_simulation(proper_init, "./data/proper_init/");
+
+    // INPROPER SETUP
+
+    std::cout << "Running the experiment with inproper setup" << std::endl;
+    std::vector<std::vector<std::complex<double>>> inproper_init;
+    get_initial_condition(excitations, inproper_init, false);
+    run_simulation(inproper_init, "./data/inproper_init/");
 
 
     std::cout << "Experiments completed successfully." << std::endl;

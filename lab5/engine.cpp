@@ -93,7 +93,7 @@ double mean_energy(
                     * operate_hamiltonian(wavef, i, j) 
                     * dA;
 
-    return energy.real();  // energia powinna być rzeczywista
+    return energy.real();
 }
 
 // ========== GROUND STATE GENERATION ========= //
@@ -279,12 +279,14 @@ void get_initial_condition(
     std::vector<std::vector<std::complex<double>>>& init,
     bool proper
 ) {
+    init.assign(N, std::vector<std::complex<double>>(N, 0.0 + 0i));
     double norm = 1.0 / std::sqrt(3);
     for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j)
-            if (proper)
+        for (int j = 0; j < N; ++j) {
+            if (proper == true)
                 init[i][j] = std::complex<double>(norm*(excitations[0][i][j] + excitations[1][i][j]), norm*excitations[2][i][j]);
             else init[i][j] = excitations[2][i][j] + 0i;
+        }
     }
 }
 
@@ -355,14 +357,19 @@ void run_simulation(
 
         // saving the deliverables
         double avg_x = 0.0, avg_y = 0.0;
+        double dA = std::pow(DELTA, 2); // Area element dx*dy
+
         for (int i = 0; i < N; ++i) {
             for (int j = 0; j < N; ++j) {
-                avg_x += wavef_t_dt[i][j].real();
-                avg_y += wavef_t_dt[i][j].imag();
+                double x_coord = DELTA * i - 0.5 * L;
+                double y_coord = DELTA * j - 0.5 * L;
+        
+                double prob_density = std::norm(wavef_t_dt[i][j]);
+        
+                avg_x += prob_density * x_coord * dA;
+                avg_y += prob_density * y_coord * dA;
             }
         }
-        avg_x /= N*N;
-        avg_y /= N*N;
 
         f_deliverables << t << "\t"
             << std::setprecision(6) << std::norm(I) << "\t"
