@@ -17,8 +17,8 @@ const double H_c = 1.0;
 const double Wx = 1.0;
 const double Wy = 1.001;
 
-const int N = 16;
-const double DELTA = 4.0/N;
+const int N = 64;
+const double DELTA = 0.125;
 const double L = DELTA*N;
 
 const double DELTA_T = 1e-3;
@@ -277,15 +277,31 @@ void generate_excitation(
 void get_initial_condition(
     std::vector<std::vector<std::vector<double>>>& excitations,
     std::vector<std::vector<std::complex<double>>>& init,
-    bool proper
+    int task
 ) {
     init.assign(N, std::vector<std::complex<double>>(N, 0.0 + 0i));
-    double norm = 1.0 / std::sqrt(3);
+    double norm = 1.0;
+    if (task < 2) norm /= std::sqrt(3);
+    else if (task < 4) norm /= std::sqrt(2);
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
-            if (proper == true)
-                init[i][j] = std::complex<double>(norm*(excitations[0][i][j] + excitations[1][i][j]), norm*excitations[2][i][j]);
-            else init[i][j] = excitations[2][i][j] + 0i;
+            switch (task) {
+                case 0:
+                    init[i][j] = std::complex<double>(norm*(excitations[0][i][j] + excitations[1][i][j]), norm*excitations[2][i][j]);
+                    break;
+                case 1:
+                    init[i][j] = std::complex<double>(norm*(excitations[0][i][j] + excitations[1][i][j]), -norm*excitations[2][i][j]);
+                    break;
+                case 2:
+                    init[i][j] = std::complex<double>(norm*(excitations[0][i][j] + excitations[1][i][j]), 0.0);
+                    break;
+                case 3:
+                    init[i][j] = std::complex<double>(norm*(excitations[0][i][j] + excitations[2][i][j]), 0.0);
+                    break;
+                case 4:
+                    init[i][j] = excitations[2][i][j] + 0i;
+                    break;
+            }
         }
     }
 }
@@ -319,7 +335,11 @@ void run_simulation(
 
     // simulation for all time steps
     std::complex<double> wavef_norm = DELTA_T / std::complex<double>(0.0, (2*H_c));
+    int steps = 1;
     for (double t = 0; t < MAX_T; t += DELTA_T) {
+        if (steps % 100 == 0)
+            std::cout << "Timestep " << t << "/" << MAX_T << "\r";
+        steps++;
         // initialization of starting point
         for (int i = 0; i < N; ++i) {
             for (int j = 0; j < N; ++j) {

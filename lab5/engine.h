@@ -22,7 +22,7 @@ void run_simulation(
 void get_initial_condition(
     std::vector<std::vector<std::vector<double>>>& excitations,
     std::vector<std::vector<std::complex<double>>>& init,
-    bool proper
+    int state
 );
 
 

@@ -13,10 +13,11 @@
 int main() {
     std::cout << "Initializing the experiments..." << std::endl;
     std::vector<std::vector<std::vector<double>>> excitations;
+    std::vector<std::vector<std::complex<double>>> init;
 
     // INITIAL CONDITION GENERATON
 
-    double alpha_crit = 0.03125;
+    double alpha_crit = 0.0078125;
     double alpha_optimal = 0.6*alpha_crit;
     int max_excitation = 3;
     for (int k = 0; k < max_excitation; ++k) {
@@ -24,19 +25,36 @@ int main() {
         generate_excitation(alpha_optimal, k, "data/excitation", excitations, true);
     }
 
-    // PROPER SETUP EXPERIMENT
+    // MULTIPLE EIGENSTATES
 
-    std::cout << "Running the experiment with proper setup" << std::endl;
-    std::vector<std::vector<std::complex<double>>> proper_init;
-    get_initial_condition(excitations, proper_init, true);
-    run_simulation(proper_init, "./data/proper_init/");
+    std::cout << "Running the experiment with multi-eigenvalue setup" << std::endl;
+    
+    get_initial_condition(excitations, init, 0);
+    run_simulation(init, "./data/mult/");
 
-    // INPROPER SETUP
+    // MULTIPLE EIGENSTATES - REVERSE ROTATION
 
-    std::cout << "Running the experiment with inproper setup" << std::endl;
-    std::vector<std::vector<std::complex<double>>> inproper_init;
-    get_initial_condition(excitations, inproper_init, false);
-    run_simulation(inproper_init, "./data/inproper_init/");
+    std::cout << "Running the experiment with reverse rotation" << std::endl;
+    get_initial_condition(excitations, init, 1);
+    run_simulation(init, "./data/mult_rev/");
+
+    // OSCILLATION - X DIRECTION
+
+    std::cout << "Running the experiment with x-direcetd oscillation" << std::endl;
+    get_initial_condition(excitations, init, 2);
+    run_simulation(init, "./data/osc_x/");
+
+    // OSCILLATION - Y DIRECTION
+
+    std::cout << "Running the experiment with y-directed oscilation" << std::endl;
+    get_initial_condition(excitations, init, 3);
+    run_simulation(init, "./data/osc_y/");
+
+    // ONE EIGENSTATE
+
+    std::cout << "Running the experiment with single eigenstate" << std::endl;
+    get_initial_condition(excitations, init, 4);
+    run_simulation(init, "./data/sing/");
 
 
     std::cout << "Experiments completed successfully." << std::endl;
