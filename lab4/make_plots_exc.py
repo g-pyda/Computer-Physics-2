@@ -6,7 +6,7 @@ import os
 data_path = "./data/excitation/"
 
 def plot_convergence(k_levels):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(6, 10))
     for k in k_levels:
         # Load energy data: col 0 is iter, col 1 is E_calc, col 2 is E_exact
         file_path = os.path.join(data_path, f"{k}_energy.out")
@@ -24,7 +24,7 @@ def plot_convergence(k_levels):
     plt.savefig("./plots/excitation_conv.png")
 
 def plot_convergence_cropped(k_levels):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(6, 10))
     for k in k_levels:
         # Load energy data: col 0 is iter, col 1 is E_calc, col 2 is E_exact
         file_path = os.path.join(data_path, f"{k}_energy.out")
@@ -36,7 +36,7 @@ def plot_convergence_cropped(k_levels):
     
     plt.xlabel("Iteration Number")
     plt.ylabel("Energy Expectation Value")
-    plt.ylim((0.0, 10.0))
+    plt.ylim((1.5, 6.0))
     plt.title("Energy Convergence for Excited States")
     plt.legend()
     plt.grid(True)

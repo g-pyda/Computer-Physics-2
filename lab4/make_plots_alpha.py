@@ -17,7 +17,7 @@ for f in range(len(folders)):
 # ===================================================
 
 
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(6, 10))
 
 # store all exact values by iteration
 exact_dict = {}
@@ -69,7 +69,7 @@ print(f"Plot saved to {output_path}")
 # ===================================================
 
 
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(6, 10))
 
 # store all exact values by iteration
 exact_dict = {}
@@ -105,7 +105,7 @@ plt.plot(exact_iters, exact_vals, linestyle="--", color="black", label="exact")
 
 plt.xlabel("Iteration")
 plt.ylabel("Energy")
-plt.ylim((1.0, 3.0))
+plt.ylim((1.4, 2.0))
 plt.title("Ground State Energy Convergence")
 plt.legend()
 plt.grid(True)
