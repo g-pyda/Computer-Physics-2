@@ -8,17 +8,13 @@
 // g++ -I ~/lapacke/lapacke/include/ -L ~/lapacke/lapacke/ main.cpp engine.cpp -llapacke -llapack -lblas -lm
 
 int main() {
-    double L = 5.0;
     std::cout << "Starting experiments..." << std::endl;
 
-    std::vector<int> N_values = {4, 8, 16, 32};
-    for (int N : N_values) {
-        std::cout << "Running bilinear experiment with N = " << N << std::endl;
-        run_simulation(N, L, false);
-    
-        std::cout << "Running biparabolic experiment with N = " << N << std::endl;
-        run_simulation(N, L, true);
-    }
+    std::cout << "Experiment for first two degenerate states with full omega" << std::endl;
+    run_simulation("full_omega", false);
+
+    std::cout << "Experiment for first two degenerate states with half omega" << std::endl;
+    run_simulation("half_omega", true);
 
     std::cout << "Experiments completed successfully." << std::endl;
 

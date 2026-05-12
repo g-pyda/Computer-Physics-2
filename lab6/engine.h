@@ -10,16 +10,10 @@ struct Node {
     double x, y;
 };
 
-// ========== CORE FUNCTIONS ========== //
+void run_simulation (
+    std::string path,
+    bool half_omega
+);
 
-double get_exact_potential(double x, double y);
-
-void run_simulation(int N, double L, bool biparabolic);
-
-// ========== SHAPE FUNCTIONS ========== //
-
-double g_func(int i, double xi1, double xi2);
-
-double h_func(int i, double xi1, double xi2);
 
 #endif
