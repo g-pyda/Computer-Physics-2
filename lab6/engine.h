@@ -12,7 +12,8 @@ struct Node {
 
 void run_simulation (
     std::string path,
-    bool half_omega
+    bool half_omega,
+    double eF
 );
 
 

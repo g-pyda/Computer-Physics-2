@@ -12,16 +12,11 @@
 
 typedef std::complex<double> complexd;
 
-// ======== SIMULATION CONSTANTS ========== //
-
-const double    h_bar = 1.0;
-const double    dt = 0.25;
-const double    T_max = 500.0;
-const int       N = 32;
-const double    L = 5.0;
-const double    eF = 1.0/L;
-
-// ========== STIFFNESS MATRICES AND COMPONENTS ========== //
+const double h_bar = 1.0;
+const double dt = 0.25;      
+const double T_max = 500.0;
+const int N = 16;
+const double L = 5.0;
 
 const std::vector<std::vector<double>> bilinear_stiffness_matrix = {
     { 0.666667, -0.166667, -0.333333, -0.166667},
@@ -55,15 +50,6 @@ const std::vector<double> gamma_pts = {
      std::sqrt(3.0/7.0 - 2.0/7.0*std::sqrt(6.0/5.0)),
      std::sqrt(3.0/7.0 + 2.0/7.0*std::sqrt(6.0/5.0))
 };
-// const std::vector<double> gamma = {
-//     -1*sqrt(3.0/7.0 - 2.0/7.0*sqrt(6.0/5.0)),
-//     sqrt(3.0/7.0 - 2.0/7.0*sqrt(6.0/5.0)),
-//     sqrt(3.0/7.0 + 2.0/7.0*sqrt(6.0/5.0)),
-//     -1*sqrt(3.0/7.0 + 2.0/7.0*sqrt(6.0/5.0))
-// }
-
-
-// ========== SHAPE FUNCTIONS ========== //
 
 double g_func(int i, double xi1, double xi2) {
     auto f1 = [](double xi) { return (1.0 - xi) / 2.0; };
@@ -89,28 +75,14 @@ double h_func(int i, double xi1, double xi2) {
     }
 }
 
-// ========== EXACT SOLUTION AND BC ========== //
-
-double get_exact_potential(double x, double y) {
-    double xc = -1.0, yc = 0.0;
-    double r = std::sqrt(std::pow(x - xc, 2) + std::pow(y - yc, 2));
-    return -1.0 / (2.0 * M_PI) * std::log(r);
-}
-
-// ========== LINEAR SYSTEM SOLVER (LAPACKE) ========== //
-
-void solve(
-    std::vector<std::vector<double>>& H,
-    std::vector<std::vector<double>>& O,
+// Solve generalized eigenvalue problem returning eigenvectors safely
+std::vector<std::vector<double>> solve_eigen(
+    const std::vector<std::vector<double>>& H,
+    const std::vector<std::vector<double>>& O,
     std::vector<double>& E,
     int total_nodes
 ) {
     int n = total_nodes;
-    int nrhs = 1;
-    int lda = n;
-    int ldb = n;
-
-    // creating flat buffers for LAPACK
     std::vector<double> H_flat(n * n);
     std::vector<double> O_flat(n * n);
     for (int i = 0; i < n; ++i) {
@@ -120,60 +92,48 @@ void solve(
         }
     }
 
-    // solving generalized symmetric-definite eigenproblem (eigenvalues in E, eigenvectors in H_flat)
     lapack_int info = LAPACKE_dsygv(
-        LAPACK_ROW_MAJOR, 
-        1,
-        'V',
-        'U',
-        n,
-        H_flat.data(),
-        lda,
-        O_flat.data(),
-        ldb,
-        E.data()
+        LAPACK_ROW_MAJOR, 1, 'V', 'U', n,
+        H_flat.data(), n, O_flat.data(), n, E.data()
     );
 
-    if (info > 0) {
-        std::cerr << "error: matrix is singular at U(" << info << "," << info << ")" << std::endl;
-        return;
-    } else if (info < 0) {
-        std::cerr << "error: illegal argument at position " << -info << " in lapack call" << std::endl;
-        return;
+    std::vector<std::vector<double>> eigenvecs(n, std::vector<double>(n, 0.0));
+    if (info == 0) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                eigenvecs[i][j] = H_flat[i * n + j]; 
+            }
+        }
     }
-
-    // shifting the H_flat to original H
-    for (int i = 0; i < n*n; i++)
-        H[i/n][i%n] = H_flat[i];
+    return eigenvecs;
 }
 
-// ========== POTENTIAL ASSEMBLY ========= //
-
+// Assemble external potential matrix V
 void assemble_potential_matrix(
     int total_nodes,
-    int N, double L,
+    int N_elem, double L_total,
     const std::vector<std::vector<int>>& nlg,
     std::vector<std::vector<double>>& V
 ) {
-    double a = L / N;
-    double jac = (a * a / 4.0);
-    for (int k = 0; k < nlg.size(); ++k) {
-        for (int hi = 0; hi < 4; ++hi) {
-            for (int hj = 0; hj < 4; ++hj) {
-                double wt = w[hi] * w[hj];
-                // Calculation of physical x
-                double xi1 = gamma_pts[hi];
-                double xi2 = gamma_pts[hj];
-                
-                // x = x_start_el + (1 + xi1)*a/2
-                double phys_x = (k % N) * a + (1.0 + xi1) * a / 2.0; 
+    double a = L_total / N_elem;
+    double jac = a * a / 4.0;
+
+    for (int k = 0; k < (int)nlg.size(); ++k) {
+        for (int gi = 0; gi < 4; ++gi) {
+            for (int gj = 0; gj < 4; ++gj) {
+                double wt = w[gi] * w[gj];
+                double xi1 = gamma_pts[gi];
+                double xi2 = gamma_pts[gj];
+
+                double phys_x = (k % N_elem) * a + (1.0 + xi1) * a / 2.0;
 
                 for (int i1 = 0; i1 < 9; ++i1) {
+                    int row = nlg[k][i1];
                     double phi_i = h_func(i1 + 1, xi1, xi2);
                     for (int i2 = 0; i2 < 9; ++i2) {
+                        int col = nlg[k][i2];
                         double phi_j = h_func(i2 + 1, xi1, xi2);
-                        // V_ij = integral( eF * x * phi_i * phi_j )
-                        V[nlg[k][i1]][nlg[k][i2]] += jac * wt * phys_x * phi_i * phi_j;
+                        V[row][col] += jac * wt * phys_x * phi_i * phi_j;
                     }
                 }
             }
@@ -181,105 +141,117 @@ void assemble_potential_matrix(
     }
 }
 
-// ============= TIME EVOLUTION =============== //
-
+// Perform Crank-Nicolson time evolution
 void time_evolution(int total_nodes, std::vector<double>& c_initial, 
                     std::vector<std::vector<double>>& O,
                     std::vector<std::vector<double>>& H0, 
                     std::vector<std::vector<double>>& V,
+                    const std::vector<Node>& nodes_coords,
                     std::string path,
                     double omega,
-                    std::vector<double> psi0,
-                    std::vector<double> psi1,
-                    std::vector<double> psi2
+                    double eF,
+                    std::vector<double>& psi0,
+                    std::vector<double>& psi1,
+                    std::vector<double>& psi2
                 ) {
     
     int n = total_nodes;
-    complexd form_const = complexd(0, -0.5*dt/h_bar);
-    std::vector<complexd> c(n);
-    std::vector<complexd> A_flat(n*n, 0.0);
+    double C_const = dt / (2.0 * h_bar); 
+    complexd i_comp(0.0, 1.0); 
+    
+    // Apply Dirichlet boundary conditions to stabilize Crank-Nicolson scheme
+    double eps = 1e-9;
+    for (int i = 0; i < n; ++i) {
+        bool is_boundary = (nodes_coords[i].x < eps || nodes_coords[i].x > L - eps || 
+                            nodes_coords[i].y < eps || nodes_coords[i].y > L - eps);
+        if (is_boundary) {
+            for (int j = 0; j < n; ++j) {
+                H0[i][j] = 0.0; H0[j][i] = 0.0;
+                V[i][j] = 0.0;  V[j][i] = 0.0;
+                O[i][j] = 0.0;  O[j][i] = 0.0;
+            }
+            O[i][i] = 1.0; 
+        }
+    }
+
+    std::vector<complexd> A_flat(n * n, 0.0);
     std::vector<complexd> B_flat(n, 0.0);
-    std::vector<complexd> H_flat_t(n*n, 0.0);
-    std::vector<complexd> H_flat_t_dt(n*n, 0.0);
+    std::vector<complexd> c(n);
+    for (int i = 0; i < n; ++i) c[i] = complexd(c_initial[i], 0.0);
     std::vector<int> ipiv(n);
-    for(int i=0; i<n; ++i) c[i] = c_initial[i];
 
     std::ofstream f_out(path + "projections.txt");
-    for (double t = 0; t < T_max; t += dt) {
-        //  H(t) = H0 + eF * V * sin(omega * t) assembly
+    
+    for (double t = 0; t <= T_max; t += dt) {
+        std::fill(A_flat.begin(), A_flat.end(), complexd(0.0, 0.0));
+        std::fill(B_flat.begin(), B_flat.end(), complexd(0.0, 0.0));
+        
+        double st = std::sin(omega * t);
+        double st_dt = std::sin(omega * (t + dt));
+
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
-                H_flat_t[i*n+j] = H0[i][j] + eF*V[i][j]*std::sin(omega*t);
-                H_flat_t_dt[i*n+j] = H0[i][j] + eF*V[i][j]*std::sin(omega*(t+dt));
-            }
-        }
-        // A and B matrices for equations: 
-        // [O - (dt/2hi)H(t+dt)]c(t+dt) = [O + (dt/2hi)H(t)]c(t) 
-        //          A           c(t+dt) = B
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                A_flat[i*n+j] = O[i][j] - form_const*H_flat_t_dt[i*n+j];
-                B_flat[i] += (O[i][j] + form_const*H_flat_t[i*n+j]) * c[j];
+                complexd h_t = complexd(H0[i][j] + eF * V[i][j] * st, 0.0);
+                complexd h_t_dt = complexd(H0[i][j] + eF * V[i][j] * st_dt, 0.0);
+
+                // LHS matrix A
+                A_flat[i * n + j] = complexd(O[i][j], 0.0) + i_comp * C_const * h_t_dt;
+
+                // RHS vector B
+                complexd m_right_ij = complexd(O[i][j], 0.0) - i_comp * C_const * h_t;
+                B_flat[i] += m_right_ij * c[j];
             }
         }
         
-        // solution of the equation
         lapack_int info = LAPACKE_zgesv(
-            LAPACK_ROW_MAJOR, 
-            n,
-            1,
-            (lapack_complex_double*)A_flat.data(), 
-            n,
-            ipiv.data(), 
-            (lapack_complex_double*)B_flat.data(), 
-            1
+            LAPACK_ROW_MAJOR, n, 1,
+            (lapack_complex_double*)A_flat.data(), n,
+            ipiv.data(),
+            (lapack_complex_double*)B_flat.data(), 1
         );
 
-        if (info != 0) {
-            std::cerr << "LAPACK error: " << info << std::endl;
-            break;
-        }
+        if (info != 0) break;
 
-        // C actualization (solution is saved at B_flat)
         c = B_flat;
 
-        // Monitoring: saving the norm and p_i
+        // Compute projections using complex conjugate
         complexd p0 = 0.0, p1 = 0.0, p2 = 0.0, norm_sq = 0.0;
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
-                norm_sq += std::conj(c[i]) * O[i][j] * c[j]; // N(t) = c* O c 
-                p0 += psi0[i] * O[i][j] * c[j];  // p_i(t) = c_i^T O c(t) 
-                p1 += psi1[i] * O[i][j] * c[j];
-                p2 += psi2[i] * O[i][j] * c[j];
+                complexd o_ij = complexd(O[i][j], 0.0);
+                norm_sq += std::conj(c[i]) * o_ij * c[j]; 
+                p0 += complexd(psi0[i], 0.0) * o_ij * c[j]; 
+                p1 += complexd(psi1[i], 0.0) * o_ij * c[j];
+                p2 += complexd(psi2[i], 0.0) * o_ij * c[j];
             }
         }
 
-        // Format: t | norm | |p0|^2 | |p1|^2  |p2|^2 
-        f_out << t << " " << std::real(norm_sq) << " " 
-              << std::norm(p0) << " " << std::norm(p1) << " " << std::norm(p2) << "\n";
+        // Calculate leakage as probability of being in states higher than p0, p1, p2
+        double current_norm = std::real(norm_sq);
+        double prob_sum = std::norm(p0) + std::norm(p1) + std::norm(p2);
+        double leakage = current_norm - prob_sum;
+
+        f_out << t << " " << std::norm(p0) << " " << std::norm(p1) << " " 
+              << std::norm(p2) << " " << leakage << "\n";
     }
     f_out.close();
-    
 }
-
-
-// ========== MESH AND GLOBAL ASSEMBLY ========== //
 
 double get_ground_state(
     std::vector<std::vector<double>>& H,
     std::vector<std::vector<double>>& O,
     std::vector<std::vector<int>>& nlg,
     std::vector<double>& c,
-    int N, double L, bool biparabolic
+    std::vector<double>& psi0,
+    std::vector<double>& psi1,
+    std::vector<double>& psi2,
+    int N_elem, double L_total, bool biparabolic
 ) {
-    double a = L / N;
-
-    // calculating grid dimensions
-    int nodes_per_side = biparabolic ? (2 * N + 1) : (N + 1);
+    double a = L_total / N_elem;
+    int nodes_per_side = biparabolic ? (2 * N_elem + 1) : (N_elem + 1);
     int total_nodes = nodes_per_side * nodes_per_side;
-    double h_step = L / (nodes_per_side - 1);
+    double h_step = L_total / (nodes_per_side - 1);
 
-    // generating global node coordinates
     std::vector<Node> p(total_nodes);
     for (int j = 0; j < nodes_per_side; ++j) {
         for (int i = 0; i < nodes_per_side; ++i) {
@@ -287,10 +259,9 @@ double get_ground_state(
         }
     }
 
-    // building mapping table nlg
     int step = biparabolic ? 2 : 1;
-    for (int ej = 0; ej < N; ++ej) {
-        for (int ei = 0; ei < N; ++ei) {
+    for (int ej = 0; ej < N_elem; ++ej) {
+        for (int ei = 0; ei < N_elem; ++ei) {
             int base = ej * step * nodes_per_side + ei * step;
             if (!biparabolic) {
                 nlg.push_back({ base, base + 1, base + nodes_per_side, base + nodes_per_side + 1 });
@@ -304,21 +275,17 @@ double get_ground_state(
         }
     }
 
-    // assembling global stiffness matrix H and overlap matric O
     std::vector<double> E(total_nodes, 0.0);
     const auto& local_S = biparabolic ? biparabolic_stiffness_matrix : bilinear_stiffness_matrix;
+    int m = (int)local_S.size();
 
     for (int k = 0; k < (int)nlg.size(); ++k) {
-        int m = (int)local_S.size();
-        // assemble stiffness (H) as before
         for (int i1 = 0; i1 < m; ++i1) {
             for (int i2 = 0; i2 < m; ++i2) {
                 H[nlg[k][i1]][nlg[k][i2]] += 0.5 * local_S[i1][i2];
             }
         }
-
-        // assemble overlap (mass) matrix using 2D Gauss quadrature on reference square [-1,1]^2
-        std::vector<std::vector<double>> local_O(m, std::vector<double>(m, 0.0));
+        double jac = a * a / 4.0;
         for (int gi = 0; gi < 4; ++gi) {
             for (int gj = 0; gj < 4; ++gj) {
                 double wt = w[gi] * w[gj];
@@ -326,126 +293,96 @@ double get_ground_state(
                     double phi_i = (m == 4) ? g_func(i1 + 1, gamma_pts[gi], gamma_pts[gj]) : h_func(i1 + 1, gamma_pts[gi], gamma_pts[gj]);
                     for (int i2 = 0; i2 < m; ++i2) {
                         double phi_j = (m == 4) ? g_func(i2 + 1, gamma_pts[gi], gamma_pts[gj]) : h_func(i2 + 1, gamma_pts[gi], gamma_pts[gj]);
-                        local_O[i1][i2] += wt * phi_i * phi_j;
+                        O[nlg[k][i1]][nlg[k][i2]] += jac * wt * phi_i * phi_j;
                     }
                 }
             }
         }
-        // account for Jacobian of mapping from reference to physical element: |J| = (a/2)*(a/2) = a*a/4
-        double jac = a * a / 4.0;
-        for (int i1 = 0; i1 < m; ++i1) {
-            for (int i2 = 0; i2 < m; ++i2) {
-                O[nlg[k][i1]][nlg[k][i2]] += jac * local_O[i1][i2];
-            }
-        }
     }
 
-    // applying boundary conditions
-    double eps = 1e-9;
+    double b_eps = 1e-9;
     for (int i = 0; i < total_nodes; ++i) {
-        if (p[i].x < eps || p[i].x > L - eps || p[i].y < eps || p[i].y > L - eps) {
-            for (int j = 0; j < total_nodes; ++j)
-                O[i][j] = O[j][i] = H[i][j] = H[j][i] = 0.0;
-            
-            H[i][i] = -1.0;
+        if (p[i].x < b_eps || p[i].x > L_total - b_eps || p[i].y < b_eps || p[i].y > L_total - b_eps) {
+            for (int j = 0; j < total_nodes; ++j) O[i][j] = O[j][i] = H[i][j] = H[j][i] = 0.0;
+            H[i][i] = 1e12; 
             O[i][i] = 1.0;
         }
     }
 
-    // solving Hc = EOc
-    solve(H, O, E, total_nodes);
+    std::vector<std::vector<double>> evecs = solve_eigen(H, O, E, total_nodes);
+    
+    // Sort eigenvalues to identify physical states
+    std::vector<std::pair<double, int>> indexed_E;
+    for(int i=0; i<total_nodes; ++i) indexed_E.push_back({E[i], i});
+    std::sort(indexed_E.begin(), indexed_E.end());
 
-    // returning the difference between two first energies
-    return E[1] - E[0];
+    int idx0 = indexed_E[0].second;
+    int idx1 = indexed_E[1].second;
+    int idx2 = indexed_E[2].second;
+
+    for (int i = 0; i < total_nodes; ++i) {
+        psi0[i] = evecs[i][idx0];
+        psi1[i] = evecs[i][idx1];
+        psi2[i] = evecs[i][idx2];
+    }
+
+    // Normalize initial state w.r.t. Overlap matrix
+    auto normalize = [&](std::vector<double>& psi) {
+        double norm2 = 0.0;
+        for (int i = 0; i < total_nodes; ++i) {
+            for (int j = 0; j < total_nodes; ++j) {
+                norm2 += psi[i] * O[i][j] * psi[j];
+            }
+        }
+        double factor = 1.0 / std::sqrt(norm2);
+        for (int i = 0; i < total_nodes; ++i) psi[i] *= factor;
+    };
+
+    normalize(psi0);
+    normalize(psi1);
+    normalize(psi2);
+    
+    for (int i = 0; i < total_nodes; ++i) c[i] = psi0[i];
+
+    // Clear boundary penalties from Hamiltonian before time evolution
+    for (int i = 0; i < total_nodes; ++i) {
+        if (p[i].x < b_eps || p[i].x > L_total - b_eps || p[i].y < b_eps || p[i].y > L_total - b_eps) {
+            H[i][i] = 0.0; 
+        }
+    }
+
+    return indexed_E[1].first - indexed_E[0].first;
 }
 
-// ========== MAIN SIMULATION ========== //
-
-void run_simulation (
-    std::string path,
-    bool half_omega
-) {
+// Main execution function
+void run_simulation(std::string path, bool half_omega, double eF) {
     std::string folder = "./data/" + path + "/";
     std::filesystem::create_directories(folder);
 
-    int total_nodes = (2 * N + 1) * (2 * N + 1);
-    std::vector<std::vector<double>> H(total_nodes, std::vector<double>(total_nodes, 0.0));
+    int nodes_per_side = 2 * N + 1;
+    int total_nodes = nodes_per_side * nodes_per_side;
+    double h_step = L / (nodes_per_side - 1);
+
+    std::vector<Node> nodes_coords(total_nodes);
+    for (int j = 0; j < nodes_per_side; ++j) {
+        for (int i = 0; i < nodes_per_side; ++i) {
+            nodes_coords[j * nodes_per_side + i] = { i * h_step, j * h_step };
+        }
+    }
+
+    std::vector<std::vector<double>> H0(total_nodes, std::vector<double>(total_nodes, 0.0));
     std::vector<std::vector<double>> O(total_nodes, std::vector<double>(total_nodes, 0.0));
     std::vector<std::vector<double>> V(total_nodes, std::vector<double>(total_nodes, 0.0));
     std::vector<double> c(total_nodes, 0.0);
     std::vector<std::vector<int>> nlg;
+    
+    std::vector<double> psi0(total_nodes), psi1(total_nodes), psi2(total_nodes);
 
-    // getting the ground state (biparabolic approach)
-    double omega = get_ground_state(H, O, nlg, c, N, L, true);
-    std::vector<double> psi0(total_nodes);
-    std::vector<double> psi1(total_nodes);
-    std::vector<double> psi2(total_nodes);
+    double dE = get_ground_state(H0, O, nlg, c, psi0, psi1, psi2, N, L, true);
 
-    for (int i = 0; i < total_nodes; ++i) {
-        psi0[i] = H[i][0];
-        psi1[i] = H[i][1];
-        psi2[i] = H[i][2];
-    }
+    double omega_res = dE / h_bar;
+    if (half_omega) omega_res /= 2.0;
 
-    // setting up the omega
-    omega /= h_bar;
-    if (half_omega) omega /= 2.0;
-
-    // assembling the potential matrix
     assemble_potential_matrix(total_nodes, N, L, nlg, V);
-
-    // performing the time evolution
-    time_evolution(total_nodes, c, O, H, V, path, omega, psi0, psi1, psi2);
+    time_evolution(total_nodes, c, O, H0, V, nodes_coords, folder, omega_res, eF, psi0, psi1, psi2);
 }
-
-/*
- * INSTRUKCJA IMPLEMENTACJI EWOLUCJI CZASOWEJ (CRANK-NICOLSON)
- * KROK PO KROKU:
- *
- * 1. ZMIANA STRUKTURY DANYCH W SOLVE_AND_SAVE:
- * - Obecnie solve_and_save zapisuje wyniki do pliku. Musisz ją zmodyfikować tak, 
- * aby zwracała (np. przez referencję) wektory własne (H_flat po wykonaniu LAPACKE_dsygv).
- * - Będą one potrzebne jako:
- * a) Stan początkowy c(t=0) - jest nim wektor własny dla najniższej energii[cite: 10].
- * b) Baza do obliczania rzutów p_i(t) = <Psi_i | Psi(t)>[cite: 35].
- *
- * 2. PARAMETRYZACJA REZONANSU (w run_simulation):
- * - Po rozwiązaniu problemu własnego (H0), odczytaj dwie najniższe energie E0 i E1.
- * - Oblicz pulsację rezonansową: omega = (E1 - E0) / h_bar[cite: 34].
- * - Ustaw amplitudę pola eF = 0.5 / L[cite: 34].
- *
- * 3. ASAMBLACJA MACIERZY POTENCJAŁU V:
- * - Użyj funkcji assemble_potential_matrix, którą już masz, ale upewnij się, 
- * że obsługuje ona przypadek biparaboliczny (obecnie w kodzie masz 'for i1 < 4').
- * - Macierz V reprezentuje operator eFx (bez członu sin(wt))[cite: 13, 32].
- *
- * 4. IMPLEMENTACJA PĘTLI CZASU (w time_evolution):
- * - Przygotuj wektor zespolony c typu std::complex<double> o rozmiarze total_nodes.
- * - Zainicjalizuj c[i] wartościami pierwszego wektora własnego (ground state).
- * - W każdej iteracji (t += dt):
- *
- * A. ZBUDUJ MACIERZ UKŁADU (Lewa strona Crank-Nicolson):
- * M_left = S - (dt / (2 * i * h_bar)) * H(t + dt) [cite: 31]
- * gdzie H(t + dt) = H0 + V * sin(omega * (t + dt))[cite: 6, 32].
- * Uwaga: S w równaniu (5) to Twoja macierz Overlap O[cite: 31, 35].
- *
- * B. OBLICZ WEKTOR PRAWEJ STRONY (Prawa strona Crank-Nicolson):
- * M_right = S + (dt / (2 * i * h_bar)) * H(t) [cite: 31]
- * RHS = M_right * c(t)
- *
- * C. ROZWIĄŻ UKŁAD RÓWNAŃ:
- * M_left * c(t + dt) = RHS
- * Użyj funkcji LAPACKE_zgesv (dedykowana dla układów liniowych zespolonych).
- *
- * 5. MONITOROWANIE I ZAPIS WYNIKÓW:
- * - W każdym kroku obliczaj:
- * a) Normę: N(t) = c*^T * O * c. Powinna być stała (bliska 1.0)[cite: 35].
- * b) Prawdopodobieństwa stanów: |p_i(t)|^2 = |c_i^T * O * c(t)|^2, 
- * gdzie c_i to i-ty stacjonarny wektor własny[cite: 35, 37].
- * - Zapisz t oraz |p_i(t)|^2 do pliku tekstowego, aby móc wygenerować wykresy[cite: 37].
- *
- * 6. REALIZACJA DODATKOWYCH SCENARIUSZY (Deliverables):
- * - Wykonaj symulację dla nominalnego omega (rezonans)[cite: 37].
- * - Powtórz symulację zmieniając omega na 0.5 * omega[cite: 38].
- * - Zaobserwuj "leakage" (wyciek) do wyższych stanów wzbudzonych przy różnych eF[cite: 39].
- */
