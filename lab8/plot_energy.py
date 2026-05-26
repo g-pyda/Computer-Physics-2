@@ -98,7 +98,7 @@ def plot_damping_experiment(data_dir, out_file, show_plot=False):
     damping_values = [item[0] for item in points]
     mean_energies = [item[1] for item in points]
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 3))
     plt.plot(damping_values, mean_energies, marker="o", linestyle="-", color="tab:orange")
     plt.xlabel(r"Damping coefficient $d$")
     plt.ylabel(r"Mean energy $\langle E \rangle$")
